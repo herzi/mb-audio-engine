@@ -39,8 +39,15 @@ bus_watch (GstBus    * bus,
 	   GstMessage* message,
 	   gpointer    data)
 {
-	g_print ("Got message %s\n",
-		 GST_MESSAGE_TYPE_NAME (message));
+	switch (GST_MESSAGE_TYPE (message)) {
+	case GST_MESSAGE_EOS:
+		g_print ("=> end of stream\n");
+		break;
+	default:
+		g_print ("Got message %s\n",
+			 GST_MESSAGE_TYPE_NAME (message));
+		break;
+	}
 
 	return TRUE;
 }
