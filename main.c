@@ -22,10 +22,22 @@
  */
 
 #include <gst/gst.h>
+#include <signal.h>
+
+static GMainLoop* loop = NULL;
+
+static void
+siginthandler (int        signal,
+	       siginfo_t* info,
+	       void     * compat)
+{
+	g_main_loop_quit (loop);
+}
 
 int
 main (int argc, char** argv)
 {
+	struct sigaction intaction;
 	GstElement* bin;
 	GstElement* src;
 	GstElement* sink;
@@ -37,6 +49,16 @@ main (int argc, char** argv)
 
 	gst_bin_add_many (GST_BIN (bin), src, sink, NULL);
 	gst_element_link_many (src, sink, NULL);
+
+	intaction.sa_sigaction = siginthandler;
+	intaction.sa_flags     = SA_SIGINFO; // | SA_RESETHAND;
+	if (sigaction(SIGINT, &intaction, NULL) < 0) {
+		g_warning ("Couldn't set up SIGINT handler");
+	}
+
+	loop = g_main_loop_new (NULL, FALSE);
+	g_main_loop_run (loop);
+	g_main_loop_unref (loop);
 
 	gst_object_unref (GST_OBJECT (bin));
 	bin = NULL;
