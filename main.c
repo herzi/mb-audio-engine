@@ -77,7 +77,7 @@ new_decoded_pad (GstElement* element,
 static gboolean
 timeout_cb (gpointer data)
 {
-	GstFormat format = GST_FORMAT_BYTES;
+	GstFormat format = GST_FORMAT_TIME;
 	gint64 position = 0;
 	gint64 duration = 0;
 
@@ -86,7 +86,7 @@ timeout_cb (gpointer data)
 		return TRUE;
 	}
 
-	if (format != GST_FORMAT_BYTES) {
+	if (format != GST_FORMAT_TIME) {
 		g_printerr ("position format wasn't in bytes\n");
 		return TRUE;
 	}
@@ -96,14 +96,14 @@ timeout_cb (gpointer data)
 		return TRUE;
 	}
 
-	if (format != GST_FORMAT_BYTES) {
+	if (format != GST_FORMAT_TIME) {
 		g_printerr ("duration format wasn't in bytes\n");
 		return TRUE;
 	}
 
-	g_print ("%" G_GINT64_FORMAT "/%" G_GINT64_FORMAT " (%5.1f%%)   \r",
-		 position,
-		 duration,
+	g_print ("%" GST_TIME_FORMAT "/%" GST_TIME_FORMAT " (%5.1f%%)   \r",
+		 GST_TIME_ARGS (position),
+		 GST_TIME_ARGS (duration),
 		 100.0 * position / duration);
 
 	return TRUE;
@@ -153,7 +153,7 @@ main (int argc, char** argv)
 
 	gst_element_set_state (bin, GST_STATE_PLAYING);
 
-	g_timeout_add (50, timeout_cb, src);
+	g_timeout_add (50, timeout_cb, bin);
 
 	loop = g_main_loop_new (NULL, FALSE);
 	g_main_loop_run (loop);
