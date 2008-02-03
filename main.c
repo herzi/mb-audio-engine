@@ -52,20 +52,31 @@ bus_watch (GstBus    * bus,
 	return TRUE;
 }
 
+static void
+new_decoded_pad (GstElement* element,
+		 GstPad    * pad,
+		 gboolean    last,
+		 GstElement* sink)
+{
+	gst_pad_link (pad, gst_element_get_pad (sink, "sink"));
+}
+
 int
 main (int argc, char** argv)
 {
 	struct sigaction intaction;
 	GstElement* bin;
 	GstElement* src;
+	GstElement* dec;
 	GstElement* sink;
 	GstBus* bus;
 
 	gst_init (&argc, &argv);
 
 	bin  = gst_pipeline_new ("pipeline0");
-	src  = gst_element_factory_make ("filesrc",  "filesrc0");
-	sink = gst_element_factory_make ("fakesink", "fakesink0");
+	src  = gst_element_factory_make ("filesrc",   "filesrc0");
+	dec  = gst_element_factory_make ("decodebin", "decodebin0");
+	sink = gst_element_factory_make ("fakesink",  "fakesink0");
 
 	bus = gst_pipeline_get_bus (GST_PIPELINE (bin));
 	gst_bus_add_watch (bus,
@@ -77,8 +88,11 @@ main (int argc, char** argv)
 		      "location", "game.ogg",
 		      NULL);
 
-	gst_bin_add_many (GST_BIN (bin), src, sink, NULL);
-	gst_element_link_many (src, sink, NULL);
+	gst_bin_add_many (GST_BIN (bin), src, dec, sink, NULL);
+	gst_element_link_many (src, dec, NULL);
+
+	g_signal_connect (dec, "new-decoded-pad",
+			  G_CALLBACK (new_decoded_pad), sink);
 
 	intaction.sa_sigaction = siginthandler;
 	intaction.sa_flags     = SA_SIGINFO; // | SA_RESETHAND;
