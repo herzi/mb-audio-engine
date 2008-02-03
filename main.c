@@ -21,10 +21,28 @@
  * USA
  */
 
+#include <gst/gst.h>
+
 int
 main (int argc, char** argv)
 {
+	GstElement* bin;
+	GstElement* src;
+	GstElement* sink;
+
 	gst_init (&argc, &argv);
+	bin  = gst_pipeline_new ("pipeline0");
+	src  = gst_element_factory_make ("filesrc",  "filesrc0");
+	sink = gst_element_factory_make ("fakesink", "fakesink0");
+
+	gst_bin_add_many (GST_BIN (bin), src, sink, NULL);
+	gst_element_link_many (src, sink, NULL);
+
+	gst_object_unref (GST_OBJECT (bin));
+	bin = NULL;
+	src = NULL;
+	sink = NULL;
+
 	return 0;
 }
 
