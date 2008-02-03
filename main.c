@@ -61,6 +61,22 @@ new_decoded_pad (GstElement* element,
 	gst_pad_link (pad, gst_element_get_pad (sink, "sink"));
 }
 
+static gboolean
+timeout_cb (gpointer data)
+{
+	GstFormat format = GST_FORMAT_BYTES;
+	gint64 position = 0;
+
+	if (gst_element_query_position (data, &format, &position)) {
+		if (format == GST_FORMAT_BYTES) {
+			g_print ("%" G_GINT64_FORMAT "\n",
+				 position);
+		}
+	}
+
+	return TRUE;
+}
+
 int
 main (int argc, char** argv)
 {
@@ -101,6 +117,8 @@ main (int argc, char** argv)
 	}
 
 	gst_element_set_state (bin, GST_STATE_PLAYING);
+
+	g_timeout_add (50, timeout_cb, src);
 
 	loop = g_main_loop_new (NULL, FALSE);
 	g_main_loop_run (loop);
