@@ -69,7 +69,7 @@ timeout_cb (gpointer data)
 
 	if (gst_element_query_position (data, &format, &position)) {
 		if (format == GST_FORMAT_BYTES) {
-			g_print ("%" G_GINT64_FORMAT "\n",
+			g_print ("%" G_GINT64_FORMAT "\r",
 				 position);
 		}
 	}
@@ -129,6 +129,8 @@ main (int argc, char** argv)
 	bin = NULL;
 	src = NULL;
 	sink = NULL;
+
+	g_print ("\n");
 
 	return 0;
 }
