@@ -101,9 +101,10 @@ timeout_cb (gpointer data)
 		return TRUE;
 	}
 
-	g_print ("%" G_GINT64_FORMAT "/%" G_GINT64_FORMAT "\r",
+	g_print ("%" G_GINT64_FORMAT "/%" G_GINT64_FORMAT " (%5.1f%%)   \r",
 		 position,
-		 duration);
+		 duration,
+		 100.0 * position / duration);
 
 	return TRUE;
 }
