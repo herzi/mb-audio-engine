@@ -34,6 +34,17 @@ siginthandler (int        signal,
 	g_main_loop_quit (loop);
 }
 
+static gboolean
+bus_watch (GstBus    * bus,
+	   GstMessage* message,
+	   gpointer    data)
+{
+	g_print ("Got message %s\n",
+		 GST_MESSAGE_TYPE_NAME (message));
+
+	return TRUE;
+}
+
 int
 main (int argc, char** argv)
 {
@@ -41,11 +52,23 @@ main (int argc, char** argv)
 	GstElement* bin;
 	GstElement* src;
 	GstElement* sink;
+	GstBus* bus;
 
 	gst_init (&argc, &argv);
+
 	bin  = gst_pipeline_new ("pipeline0");
 	src  = gst_element_factory_make ("filesrc",  "filesrc0");
 	sink = gst_element_factory_make ("fakesink", "fakesink0");
+
+	bus = gst_pipeline_get_bus (GST_PIPELINE (bin));
+	gst_bus_add_watch (bus,
+			   bus_watch,
+			   NULL);
+	gst_object_unref (bus);
+
+	g_object_set (src,
+		      "location", "game.ogg",
+		      NULL);
 
 	gst_bin_add_many (GST_BIN (bin), src, sink, NULL);
 	gst_element_link_many (src, sink, NULL);
@@ -56,10 +79,13 @@ main (int argc, char** argv)
 		g_warning ("Couldn't set up SIGINT handler");
 	}
 
+	gst_element_set_state (bin, GST_STATE_PLAYING);
+
 	loop = g_main_loop_new (NULL, FALSE);
 	g_main_loop_run (loop);
 	g_main_loop_unref (loop);
 
+	gst_element_set_state (bin, GST_STATE_NULL);
 	gst_object_unref (GST_OBJECT (bin));
 	bin = NULL;
 	src = NULL;
