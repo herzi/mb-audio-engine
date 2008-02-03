@@ -79,13 +79,31 @@ timeout_cb (gpointer data)
 {
 	GstFormat format = GST_FORMAT_BYTES;
 	gint64 position = 0;
+	gint64 duration = 0;
 
-	if (gst_element_query_position (data, &format, &position)) {
-		if (format == GST_FORMAT_BYTES) {
-			g_print ("%" G_GINT64_FORMAT "\r",
-				 position);
-		}
+	if (!gst_element_query_position (data, &format, &position)) {
+		g_printerr ("error getting position\n");
+		return TRUE;
 	}
+
+	if (format != GST_FORMAT_BYTES) {
+		g_printerr ("position format wasn't in bytes\n");
+		return TRUE;
+	}
+
+	if (!gst_element_query_duration (data, &format, &duration)) {
+		g_printerr ("error getting duration\n");
+		return TRUE;
+	}
+
+	if (format != GST_FORMAT_BYTES) {
+		g_printerr ("duration format wasn't in bytes\n");
+		return TRUE;
+	}
+
+	g_print ("%" G_GINT64_FORMAT "/%" G_GINT64_FORMAT "\r",
+		 position,
+		 duration);
 
 	return TRUE;
 }
