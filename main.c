@@ -39,9 +39,15 @@ bus_watch (GstBus    * bus,
 	   GstMessage* message,
 	   gpointer    data)
 {
+	GstElement* pipeline = GST_ELEMENT (data);
+
 	switch (GST_MESSAGE_TYPE (message)) {
 	case GST_MESSAGE_EOS:
-		g_print ("=> end of stream\n");
+		if (!gst_element_seek_simple (pipeline, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, G_GINT64_CONSTANT (0))) {
+			g_printerr ("error seeking back\n");
+		} else {
+			g_printerr ("=> end of stream\n");
+		}
 		break;
 	case GST_MESSAGE_ERROR:
 		{
@@ -131,7 +137,7 @@ main (int argc, char** argv)
 	bus = gst_pipeline_get_bus (GST_PIPELINE (bin));
 	gst_bus_add_watch (bus,
 			   bus_watch,
-			   NULL);
+			   bin);
 	gst_object_unref (bus);
 
 	g_object_set (src,
