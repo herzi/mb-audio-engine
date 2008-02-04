@@ -22,6 +22,7 @@
  */
 
 #include <gst/gst.h>
+#include <term.h>
 #include <signal.h>
 
 static GMainLoop* loop = NULL;
@@ -127,6 +128,16 @@ main (int argc, char** argv)
 	GstBus* bus;
 
 	gst_init (&argc, &argv);
+
+	int status = tgetent (NULL, g_getenv ("TERM"));
+	if (status < 0) {
+		g_warning ("Couldn't access the termcap database");
+		return 1;
+	} else if (status == 0) {
+		g_warning ("Couldn't find terminal info for type \"%s\"",
+			   g_getenv ("TERM"));
+		return 1;
+	}
 
 	bin  = gst_pipeline_new ("pipeline0");
 	src  = gst_element_factory_make ("filesrc",      "filesrc0");
