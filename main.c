@@ -28,6 +28,18 @@
 static GMainLoop* loop = NULL;
 
 static void
+clear_line (void)
+{
+	static char* ce = NULL;
+
+	if (G_UNLIKELY (!ce)) {
+		ce = tgetstr ("ce", NULL);
+	}
+
+	tputs (ce, 1, putchar);
+}
+
+static void
 siginthandler (int        signal,
 	       siginfo_t* info,
 	       void     * compat)
@@ -107,6 +119,8 @@ timeout_cb (gpointer data)
 		g_printerr ("duration format wasn't in bytes\n");
 		return TRUE;
 	}
+
+	clear_line ();
 
 	g_print ("%" GST_TIME_FORMAT "/%" GST_TIME_FORMAT " (%5.1f%%)   \r",
 		 GST_TIME_ARGS (position),
