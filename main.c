@@ -159,6 +159,7 @@ main (int argc, char** argv)
 	GstElement* src;
 	GstElement* dec;
 	GstElement* conv;
+	GstElement* add;
 	GstElement* sink;
 	GstBus* bus;
 
@@ -178,6 +179,7 @@ main (int argc, char** argv)
 	src  = gst_element_factory_make ("filesrc",      "filesrc0");
 	dec  = gst_element_factory_make ("decodebin",    "decodebin0");
 	conv = gst_element_factory_make ("audioconvert", "audioconvert0");
+	add  = gst_element_factory_make ("adder",        "adder0");
 	sink = gst_element_factory_make ("autoaudiosink","audiosink0");
 
 	bus = gst_pipeline_get_bus (GST_PIPELINE (bin));
@@ -190,9 +192,9 @@ main (int argc, char** argv)
 		      "location", "game.ogg",
 		      NULL);
 
-	gst_bin_add_many (GST_BIN (bin), src, dec, conv, sink, NULL);
+	gst_bin_add_many (GST_BIN (bin), src, dec, conv, add, sink, NULL);
 	gst_element_link_many (src, dec, NULL);
-	gst_element_link_many (conv, sink, NULL);
+	gst_element_link_many (conv, add, sink, NULL);
 
 	g_signal_connect (dec, "new-decoded-pad",
 			  G_CALLBACK (new_decoded_pad), conv);
