@@ -84,6 +84,13 @@ bus_watch (GstBus    * bus,
 			g_print ("\n%s\n%s\n", error->message, msg);
 		}
 		break;
+	case GST_MESSAGE_STATE_CHANGED:
+	case GST_MESSAGE_CLOCK_PROVIDE:
+	case GST_MESSAGE_NEW_CLOCK:
+	case GST_MESSAGE_ASYNC_DONE:
+	case GST_MESSAGE_TAG:
+		/* we don't care */
+		break;
 	default:
 		g_print ("\nGot message: %s\n",
 			 GST_MESSAGE_TYPE_NAME (message));
@@ -100,12 +107,12 @@ new_decoded_pad (GstElement* element,
 		 GstElement* sink)
 {
 	clear_line ();
-
+#if 0
 	g_print ("=> new pad: %s\n"
 		 "   Capabilities: %s\n",
 		 gst_pad_get_name (pad),
 		 gst_caps_to_string (gst_pad_get_caps (pad))); // FIXME: fix memory
-
+#endif
 	gst_pad_link (pad, gst_element_get_pad (sink, "sink"));
 }
 
