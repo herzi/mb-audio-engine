@@ -40,6 +40,18 @@ clear_line (void)
 }
 
 static void
+carriage__return (void)
+{
+	static char* cr = NULL;
+
+	if (G_UNLIKELY (!cr)) {
+		cr = tgetstr ("cr", NULL);
+	}
+
+	tputs (cr, 1, putchar);
+}
+
+static void
 siginthandler (int        signal,
 	       siginfo_t* info,
 	       void     * compat)
@@ -57,9 +69,11 @@ bus_watch (GstBus    * bus,
 	switch (GST_MESSAGE_TYPE (message)) {
 	case GST_MESSAGE_EOS:
 		if (!gst_element_seek_simple (pipeline, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, G_GINT64_CONSTANT (0))) {
-			g_printerr ("error seeking back\n");
+			g_printerr ("\nerror seeking back\n");
 		} else {
-			g_printerr ("=> end of stream\n");
+			carriage__return ();
+			clear_line ();
+			g_printerr ("\n=> end of stream\n");
 		}
 		break;
 	case GST_MESSAGE_ERROR:
@@ -67,11 +81,11 @@ bus_watch (GstBus    * bus,
 			GError* error = NULL;
 			gchar * msg = NULL;
 			gst_message_parse_error (message, &error, &msg);
-			g_print ("%s\n%s\n", error->message, msg);
+			g_print ("\n%s\n%s\n", error->message, msg);
 		}
 		break;
 	default:
-		g_print ("Got message %s\n",
+		g_print ("\nGot message: %s\n",
 			 GST_MESSAGE_TYPE_NAME (message));
 		break;
 	}
@@ -85,6 +99,8 @@ new_decoded_pad (GstElement* element,
 		 gboolean    last,
 		 GstElement* sink)
 {
+	clear_line ();
+
 	g_print ("=> new pad: %s\n"
 		 "   Capabilities: %s\n",
 		 gst_pad_get_name (pad),
@@ -101,31 +117,29 @@ timeout_cb (gpointer data)
 	gint64 duration = 0;
 
 	if (!gst_element_query_position (data, &format, &position)) {
-		g_printerr ("error getting position\n");
 		return TRUE;
 	}
 
 	if (format != GST_FORMAT_TIME) {
-		g_printerr ("position format wasn't in bytes\n");
 		return TRUE;
 	}
 
 	if (!gst_element_query_duration (data, &format, &duration)) {
-		g_printerr ("error getting duration\n");
 		return TRUE;
 	}
 
 	if (format != GST_FORMAT_TIME) {
-		g_printerr ("duration format wasn't in bytes\n");
 		return TRUE;
 	}
 
 	clear_line ();
 
-	g_print ("%" GST_TIME_FORMAT "/%" GST_TIME_FORMAT " (%5.1f%%)   \r",
+	g_print ("%" GST_TIME_FORMAT "/%" GST_TIME_FORMAT " (%5.1f%%)",
 		 GST_TIME_ARGS (position),
 		 GST_TIME_ARGS (duration),
 		 100.0 * position / duration);
+
+	carriage__return ();
 
 	return TRUE;
 }
