@@ -68,13 +68,9 @@ bus_watch (GstBus    * bus,
 
 	switch (GST_MESSAGE_TYPE (message)) {
 	case GST_MESSAGE_EOS:
-		if (!gst_element_seek_simple (pipeline, GST_FORMAT_TIME, GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT, G_GINT64_CONSTANT (0))) {
-			g_printerr ("\nerror seeking back\n");
-		} else {
-			carriage__return ();
-			clear_line ();
-			g_printerr ("\n=> end of stream\n");
-		}
+		g_print ("\n%s: %s\n",
+			 GST_MESSAGE_TYPE_NAME (message),
+			 G_OBJECT_TYPE_NAME (GST_MESSAGE_SRC (message)));
 		break;
 	case GST_MESSAGE_ERROR:
 		{
@@ -84,7 +80,53 @@ bus_watch (GstBus    * bus,
 			g_print ("\n%s\n%s\n", error->message, msg);
 		}
 		break;
+	case GST_MESSAGE_SEGMENT_DONE:
+		g_print ("\n%s: %s\n",
+			 GST_MESSAGE_TYPE_NAME (message),
+			 G_OBJECT_TYPE_NAME (GST_MESSAGE_SRC (message)));
+	        GstElement* elem = gst_bin_get_by_name (GST_BIN (pipeline), "audiosink0");
+	        g_assert(GST_IS_ELEMENT(elem));
+        	if (!gst_element_seek (elem, 1.0, GST_FORMAT_TIME,
+        	        GST_SEEK_FLAG_SEGMENT, 
+        	        GST_SEEK_TYPE_SET, G_GINT64_CONSTANT (0),
+        	        GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE)) {
+			g_printerr ("\nseek failed\n");
+		} else {
+			g_printerr ("\nseeked back\n");
+		}
+                gst_object_unref (elem);
+	        break;
 	case GST_MESSAGE_STATE_CHANGED:
+	        if (GST_MESSAGE_SRC (message) == GST_OBJECT (pipeline)) {
+	                GstState oldstate,newstate,pending;
+	                GstStateChangeReturn result;
+
+                        gst_message_parse_state_changed(message,&oldstate,&newstate,&pending);
+
+        		g_print ("\n%s: %s : %s -> %s\n",
+        			 GST_MESSAGE_TYPE_NAME (message),
+        			 G_OBJECT_TYPE_NAME (GST_MESSAGE_SRC (message)),
+        			 gst_element_state_get_name(oldstate),gst_element_state_get_name(newstate));
+
+                        switch(GST_STATE_TRANSITION(oldstate,newstate)) {
+                                case GST_STATE_CHANGE_READY_TO_PAUSED: {
+                                        GstElement* elem = gst_bin_get_by_name (GST_BIN (pipeline), "audiosink0");
+                                        g_assert(GST_IS_ELEMENT(elem));
+                                	if (!gst_element_seek (elem, 1.0, GST_FORMAT_TIME,
+                                	        GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_SEGMENT, 
+                                	        GST_SEEK_TYPE_SET, G_GINT64_CONSTANT (0),
+                                	        GST_SEEK_TYPE_NONE, GST_CLOCK_TIME_NONE)) {
+                                		g_printerr ("\ninitial seek failed\n");
+                                	} else {
+                                		g_printerr ("\ninitial seek set\n");
+                                	}
+                                	gst_object_unref (elem);
+	                               	result = gst_element_set_state (pipeline, GST_STATE_PLAYING);
+                                	g_print ("state change to PLAYING => %d\n", result);
+                                	} break;
+                	}
+        	}
+	        break;
 	case GST_MESSAGE_CLOCK_PROVIDE:
 	case GST_MESSAGE_NEW_CLOCK:
 	case GST_MESSAGE_ASYNC_DONE:
@@ -106,14 +148,17 @@ new_decoded_pad (GstElement* element,
 		 gboolean    last,
 		 GstElement* sink)
 {
+	GstPadLinkReturn result;
+
 	clear_line ();
-#if 0
+
 	g_print ("=> new pad: %s\n"
 		 "   Capabilities: %s\n",
 		 gst_pad_get_name (pad),
 		 gst_caps_to_string (gst_pad_get_caps (pad))); // FIXME: fix memory
-#endif
-	gst_pad_link (pad, gst_element_get_pad (sink, "sink"));
+
+	result = gst_pad_link (pad, gst_element_get_pad (sink, "sink"));
+	g_print ("%d\n", result);
 }
 
 static gboolean
@@ -156,12 +201,14 @@ main (int argc, char** argv)
 {
 	struct sigaction intaction;
 	GstElement* bin;
+	GstElement* pipe;
 	GstElement* src;
 	GstElement* dec;
 	GstElement* conv;
 	GstElement* add;
 	GstElement* sink;
 	GstBus* bus;
+	GstPad* pad;
 
 	gst_init (&argc, &argv);
 
@@ -176,24 +223,26 @@ main (int argc, char** argv)
 	}
 
 	bin  = gst_pipeline_new ("pipeline0");
-	src  = gst_element_factory_make ("filesrc",      "filesrc0");
-	dec  = gst_element_factory_make ("decodebin",    "decodebin0");
-	conv = gst_element_factory_make ("audioconvert", "audioconvert0");
-	add  = gst_element_factory_make ("adder",        "adder0");
-	sink = gst_element_factory_make ("autoaudiosink","audiosink0");
+	pipe = gst_bin_new ("bin1");
+	src  = gst_element_factory_make ("filesrc",       "filesrc1");
+	dec  = gst_element_factory_make ("decodebin",     "decodebin1");
+	conv = gst_element_factory_make ("audioconvert",  "audioconvert1");
+	add  = gst_element_factory_make ("adder",         "adder0");
+	sink = gst_element_factory_make ("autoaudiosink", "audiosink0");
 
 	bus = gst_pipeline_get_bus (GST_PIPELINE (bin));
-	gst_bus_add_watch (bus,
-			   bus_watch,
-			   bin);
+	gst_bus_add_watch (bus, bus_watch, bin);
 	gst_object_unref (bus);
 
-	g_object_set (src,
-		      "location", "game.ogg",
-		      NULL);
+	g_object_set (src, "location", "game.ogg", NULL);
 
-	gst_bin_add_many (GST_BIN (bin), src, dec, conv, add, sink, NULL);
-	gst_element_link_many (src, dec, NULL);
+	gst_bin_add_many (GST_BIN (pipe), src, NULL);
+	pad = gst_ghost_pad_new ("src",
+				 gst_element_get_pad (src, "src"));
+	gst_element_add_pad (pipe, pad);
+
+	gst_bin_add_many (GST_BIN (bin), pipe,  dec, conv, add, sink, NULL);
+	gst_element_link_many (pipe, dec, NULL);
 	gst_element_link_many (conv, add, sink, NULL);
 
 	g_signal_connect (dec, "new-decoded-pad",
@@ -205,7 +254,9 @@ main (int argc, char** argv)
 		g_warning ("Couldn't set up SIGINT handler");
 	}
 
-	gst_element_set_state (bin, GST_STATE_PLAYING);
+	GstStateChangeReturn result;
+	result = gst_element_set_state (bin, GST_STATE_PAUSED);
+	g_print ("state change to PAUSED => %d\n", result);
 
 	g_timeout_add (50, timeout_cb, bin);
 
@@ -214,6 +265,7 @@ main (int argc, char** argv)
 	g_main_loop_unref (loop);
 
 	gst_element_set_state (bin, GST_STATE_NULL);
+	//g_object_unref (pad);
 	gst_object_unref (GST_OBJECT (bin));
 	bin = NULL;
 	src = NULL;
