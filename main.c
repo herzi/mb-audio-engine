@@ -70,6 +70,14 @@ siginthandler (int        signal,
 	g_main_loop_quit (ctx.loop);
 }
 
+static void
+pad_blocked_cb (GstPad  * pad,
+                gboolean  blocked,
+                gpointer  user_data)
+{
+        /* noop */
+}
+
 static gboolean
 bus_watch (GstBus    * bus,
 	   GstMessage* message,
@@ -162,7 +170,10 @@ bus_watch (GstBus    * bus,
                                                 }
                                                 //gst_object_unref(conv);
                                                 /**/
-                                                gst_pad_set_blocked (ctx->player2_pad, TRUE);
+                                                gst_pad_set_blocked_async (ctx->player2_pad,
+                                                                           TRUE,
+                                                                           pad_blocked_cb,
+                                                                           NULL);
                                                 gst_element_set_locked_state (ctx->player2, TRUE);
                                                 } break;
                                 }
@@ -270,7 +281,7 @@ gboolean event_probe (GstPad *pad, GstEvent *event, gpointer user_data)
                 /* post a message to the bus, don't do scary stuff inside the
                  * streaming thread */
                 gst_element_post_message (ctx->player2,
-                        gst_message_new_element (GST_OBJECT (ctx->player2), 
+                        gst_message_new_element (GST_OBJECT (ctx->player2),
                                 gst_structure_new ("fxplayer::eos", NULL)));
         }
         return TRUE;
@@ -290,9 +301,12 @@ fxtrigger_cb (gpointer user_data)
 	gst_pad_link(ctx->player2_pad, ctx->player2_peer);
         gst_element_set_locked_state (ctx->player2, FALSE);
         gst_element_set_state (ctx->player2, GST_STATE_PLAYING);
-	gst_pad_set_blocked (ctx->player2_pad, FALSE);
+        gst_pad_set_blocked_async (ctx->player2_pad,
+                                   FALSE,
+                                   pad_blocked_cb,
+                                   NULL);
         gst_object_unref (add);
-        //return FALSE;
+        return FALSE;
         // right now it works only once
         return TRUE;
 }
